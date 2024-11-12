@@ -61,6 +61,7 @@
         const scoreElement = document.getElementById('score');
         let score = 0;
         const gridSize = 10;
+        let currentDraggedShape = null;
 
         // Initialize the game board with tiles
         function createBoard() {
@@ -70,68 +71,67 @@
                 tile.dataset.index = i;
                 tile.addEventListener('dragover', (e) => e.preventDefault());
                 tile.addEventListener('drop', handleDrop);
+                tile.addEventListener('touchmove', (e) => e.preventDefault()); // Prevents scrolling while dragging
                 gameContainer.appendChild(tile);
             }
         }
 
         // Function to generate a random shape and add it to the shape container
         function generateShape() {
-            // Clear the shape container first
             shapeContainer.innerHTML = '';
-
-            // Create a new shape element
             const shape = document.createElement('div');
             shape.classList.add('shape');
             shape.draggable = true;
 
-            // Randomize shape type
-            const shapeType = Math.floor(Math.random() * 3); // 0: 1x1, 1: 1x2, 2: 2x2
-
+            const shapeType = Math.floor(Math.random() * 3);
             switch (shapeType) {
-                case 0: // 1x1 block
-                    shape.style.width = '40px';
-                    shape.style.height = '40px';
-                    shape.textContent = "1x1";
-                    break;
-                case 1: // 1x2 block
-                    shape.style.width = '80px';
-                    shape.style.height = '40px';
-                    shape.textContent = "1x2";
-                    break;
-                case 2: // 2x2 block
-                    shape.style.width = '80px';
-                    shape.style.height = '80px';
-                    shape.textContent = "2x2";
-                    break;
+                case 0: shape.style.width = '40px'; shape.style.height = '40px'; shape.textContent = "1x1"; break;
+                case 1: shape.style.width = '80px'; shape.style.height = '40px'; shape.textContent = "1x2"; break;
+                case 2: shape.style.width = '80px'; shape.style.height = '80px'; shape.textContent = "2x2"; break;
             }
 
-            // Add drag event listener and append to shape container
             shape.addEventListener('dragstart', handleDragStart);
+            shape.addEventListener('touchstart', handleTouchStart);
+            shape.addEventListener('touchend', handleTouchEnd);
             shapeContainer.appendChild(shape);
         }
 
         // Drag-and-drop event handlers
         function handleDragStart(event) {
-            event.dataTransfer.setData("shapeType", event.target.textContent);
+            currentDraggedShape = event.target.textContent;
+            event.dataTransfer.setData("shapeType", currentDraggedShape);
+        }
+
+        function handleTouchStart(event) {
+            currentDraggedShape = event.target.textContent;
+            event.target.style.opacity = 0.5;
+        }
+
+        function handleTouchEnd(event) {
+            event.target.style.opacity = 1;
+            const touch = event.changedTouches[0];
+            const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (dropTarget && dropTarget.classList.contains('tile')) {
+                handleDrop({ target: dropTarget });
+            }
+            currentDraggedShape = null;
         }
 
         function handleDrop(event) {
             const tile = event.target;
-            const shapeType = event.dataTransfer.getData("shapeType");
+            const shapeType = currentDraggedShape || event.dataTransfer.getData("shapeType");
 
-            // Check if the drop is valid based on shape type
             if (shapeType === "1x1") {
                 if (!tile.classList.contains('shape')) {
                     tile.classList.add('shape');
                     tile.textContent = 'B';
                     checkRows();
                     updateScore();
-                    generateShape(); // Generate new shape after placing one
+                    generateShape();
                 }
             } else if (shapeType === "1x2") {
                 const index = parseInt(tile.dataset.index);
-                if (index % gridSize < gridSize - 1 && // Ensure shape fits horizontally
-                    !tile.classList.contains('shape') &&
+                if (index % gridSize < gridSize - 1 && !tile.classList.contains('shape') &&
                     !gameContainer.children[index + 1].classList.contains('shape')) {
                     
                     tile.classList.add('shape');
@@ -197,7 +197,7 @@
         // Initialize the game
         function initGame() {
             createBoard();
-            generateShape(); // Add initial shape for the player
+            generateShape();
             updateScore();
         }
 
