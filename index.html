@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockblast Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .game-container {
+            display: grid;
+            grid-template-columns: repeat(10, 40px);
+            grid-template-rows: repeat(10, 40px);
+            gap: 2px;
+            background-color: #333;
+            border: 2px solid #000;
+            margin: auto;
+            width: fit-content;
+        }
+        .tile {
+            width: 40px;
+            height: 40px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            display: grid;
+            place-items: center;
+        }
+        .shape-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        .shape {
+            background-color: #ffcc00;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .score {
+            text-align: center;
+            color: #333;
+            font-size: 24px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Blockblast Game</h1>
+    <div class="game-container" id="gameContainer"></div>
+    <div class="score" id="score">Score: 0</div>
+    <div class="shape-container" id="shapeContainer"></div>
+
+    <script>
+        const gameContainer = document.getElementById('gameContainer');
+        const shapeContainer = document.getElementById('shapeContainer');
+        const scoreElement = document.getElementById('score');
+        let score = 0;
+        const gridSize = 10;
+
+        // Initialize the game board with tiles
+        function createBoard() {
+            for (let i = 0; i < gridSize * gridSize; i++) {
+                const tile = document.createElement('div');
+                tile.classList.add('tile');
+                tile.dataset.index = i;
+                tile.addEventListener('dragover', (e) => e.preventDefault());
+                tile.addEventListener('drop', handleDrop);
+                gameContainer.appendChild(tile);
+            }
+        }
+
+        // Function to generate a random shape and add it to the shape container
+        function generateShape() {
+            // Clear the shape container first
+            shapeContainer.innerHTML = '';
+
+            // Create a new shape element
+            const shape = document.createElement('div');
+            shape.classList.add('shape');
+            shape.draggable = true;
+
+            // Randomize shape type
+            const shapeType = Math.floor(Math.random() * 3); // 0: 1x1, 1: 1x2, 2: 2x2
+
+            switch (shapeType) {
+                case 0: // 1x1 block
+                    shape.style.width = '40px';
+                    shape.style.height = '40px';
+                    shape.textContent = "1x1";
+                    break;
+                case 1: // 1x2 block
+                    shape.style.width = '80px';
+                    shape.style.height = '40px';
+                    shape.textContent = "1x2";
+                    break;
+                case 2: // 2x2 block
+                    shape.style.width = '80px';
+                    shape.style.height = '80px';
+                    shape.textContent = "2x2";
+                    break;
+            }
+
+            // Add drag event listener and append to shape container
+            shape.addEventListener('dragstart', handleDragStart);
+            shapeContainer.appendChild(shape);
+        }
+
+        // Drag-and-drop event handlers
+        function handleDragStart(event) {
+            event.dataTransfer.setData("shapeType", event.target.textContent);
+        }
+
+        function handleDrop(event) {
+            const tile = event.target;
+            const shapeType = event.dataTransfer.getData("shapeType");
+
+            // Check if the drop is valid based on shape type
+            if (shapeType === "1x1") {
+                if (!tile.classList.contains('shape')) {
+                    tile.classList.add('shape');
+                    tile.textContent = 'B';
+                    checkRows();
+                    updateScore();
+                    generateShape(); // Generate new shape after placing one
+                }
+            } else if (shapeType === "1x2") {
+                const index = parseInt(tile.dataset.index);
+                if (index % gridSize < gridSize - 1 && // Ensure shape fits horizontally
+                    !tile.classList.contains('shape') &&
+                    !gameContainer.children[index + 1].classList.contains('shape')) {
+                    
+                    tile.classList.add('shape');
+                    tile.textContent = 'B';
+                    gameContainer.children[index + 1].classList.add('shape');
+                    gameContainer.children[index + 1].textContent = 'B';
+                    checkRows();
+                    updateScore();
+                    generateShape();
+                }
+            } else if (shapeType === "2x2") {
+                const index = parseInt(tile.dataset.index);
+                if (index % gridSize < gridSize - 1 && index + gridSize < gridSize * gridSize &&
+                    !tile.classList.contains('shape') &&
+                    !gameContainer.children[index + 1].classList.contains('shape') &&
+                    !gameContainer.children[index + gridSize].classList.contains('shape') &&
+                    !gameContainer.children[index + gridSize + 1].classList.contains('shape')) {
+                    
+                    tile.classList.add('shape');
+                    tile.textContent = 'B';
+                    gameContainer.children[index + 1].classList.add('shape');
+                    gameContainer.children[index + 1].textContent = 'B';
+                    gameContainer.children[index + gridSize].classList.add('shape');
+                    gameContainer.children[index + gridSize].textContent = 'B';
+                    gameContainer.children[index + gridSize + 1].classList.add('shape');
+                    gameContainer.children[index + gridSize + 1].textContent = 'B';
+                    checkRows();
+                    updateScore();
+                    generateShape();
+                }
+            }
+        }
+
+        // Function to check and clear completed rows
+        function checkRows() {
+            let rowsCleared = 0;
+            for (let row = 0; row < gridSize; row++) {
+                let isRowComplete = true;
+                for (let col = 0; col < gridSize; col++) {
+                    const index = row * gridSize + col;
+                    if (!gameContainer.children[index].classList.contains('shape')) {
+                        isRowComplete = false;
+                        break;
+                    }
+                }
+                if (isRowComplete) {
+                    rowsCleared++;
+                    for (let col = 0; col < gridSize; col++) {
+                        const index = row * gridSize + col;
+                        gameContainer.children[index].classList.remove('shape');
+                        gameContainer.children[index].textContent = '';
+                    }
+                }
+            }
+            score += rowsCleared * 10;
+        }
+
+        // Function to update score display
+        function updateScore() {
+            scoreElement.textContent = `Score: ${score}`;
+        }
+
+        // Initialize the game
+        function initGame() {
+            createBoard();
+            generateShape(); // Add initial shape for the player
+            updateScore();
+        }
+
+        // Start the game
+        initGame();
+    </script>
+</body>
+</html>
