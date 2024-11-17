@@ -29,7 +29,7 @@
             place-items: center;
         }
         .tile.shadow {
-            background-color: rgba(0, 0, 255, 0.5);
+            background-color: rgba(0, 255, 0, 0.4);
         }
         .tile.occupied {
             background-color: #ffcc00;
@@ -69,6 +69,7 @@
         let score = 0;
         const gridSize = 10;
         let currentDraggedShape = null;
+        let dragOffset = { x: 0, y: 0 };
 
         const shapes = [
             { type: '1x1', width: 1, height: 1 },
@@ -103,26 +104,12 @@
 
             shapeElement.addEventListener('dragstart', handleDragStart);
             shapeElement.addEventListener('dragend', handleDragEnd);
-            shapeElement.addEventListener('drag', handleDrag);
             shapeContainer.appendChild(shapeElement);
         }
 
         function handleDragStart(event) {
             const shapeData = JSON.parse(event.target.dataset.shape);
             currentDraggedShape = shapeData;
-        }
-
-        function handleDrag(event) {
-            clearShadow();
-            if (!event.clientX || !event.clientY) return;
-
-            const hoverTile = document.elementFromPoint(event.clientX, event.clientY);
-            if (hoverTile && hoverTile.classList.contains('tile')) {
-                const index = parseInt(hoverTile.dataset.index);
-                if (canPlaceShape(index, currentDraggedShape)) {
-                    showShadow(index, currentDraggedShape);
-                }
-            }
         }
 
         function handleDragEnd(event) {
@@ -152,15 +139,6 @@
             positions.forEach(pos => {
                 const tile = gameContainer.children[pos];
                 tile.classList.add('occupied');
-                tile.classList.remove('shadow');
-            });
-        }
-
-        function showShadow(index, shape) {
-            const positions = getShapePositions(index, shape);
-            positions.forEach(pos => {
-                const tile = gameContainer.children[pos];
-                if (tile) tile.classList.add('shadow');
             });
         }
 
@@ -178,15 +156,15 @@
             return positions;
         }
 
+        function updateScore() {
+            score += 10;
+            scoreElement.textContent = `Score: ${score}`;
+        }
+
         function clearShadow() {
             document.querySelectorAll('.tile.shadow').forEach(tile => {
                 tile.classList.remove('shadow');
             });
-        }
-
-        function updateScore() {
-            score += 10;
-            scoreElement.textContent = `Score: ${score}`;
         }
 
         function initGame() {
