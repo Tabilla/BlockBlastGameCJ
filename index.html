@@ -28,6 +28,12 @@
             display: grid;
             place-items: center;
         }
+        .tile.shadow {
+            background-color: rgba(0, 255, 0, 0.4);
+        }
+        .tile.occupied {
+            background-color: #ffcc00;
+        }
         .shape-container {
             display: flex;
             gap: 10px;
@@ -40,6 +46,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            border: 1px solid #000;
         }
         .score {
             text-align: center;
@@ -62,146 +69,109 @@
         let score = 0;
         const gridSize = 10;
         let currentDraggedShape = null;
+        let dragOffset = { x: 0, y: 0 };
 
-        // Initialize the game board with tiles
+        const shapes = [
+            { type: '1x1', width: 1, height: 1 },
+            { type: '1x2', width: 1, height: 2 },
+            { type: '1x3', width: 1, height: 3 },
+            { type: '1x4', width: 1, height: 4 },
+            { type: '2x2', width: 2, height: 2 },
+            { type: '2x3', width: 2, height: 3 },
+            { type: '3x3', width: 3, height: 3 },
+            { type: 'L-shape', width: 2, height: 3, pattern: [true, false, true, true, true, false] }
+        ];
+
         function createBoard() {
             for (let i = 0; i < gridSize * gridSize; i++) {
                 const tile = document.createElement('div');
                 tile.classList.add('tile');
                 tile.dataset.index = i;
-                tile.addEventListener('dragover', (e) => e.preventDefault());
-                tile.addEventListener('drop', handleDrop);
-                tile.addEventListener('touchmove', (e) => e.preventDefault()); // Prevents scrolling while dragging
                 gameContainer.appendChild(tile);
             }
         }
 
-        // Function to generate a random shape and add it to the shape container
         function generateShape() {
             shapeContainer.innerHTML = '';
-            const shape = document.createElement('div');
-            shape.classList.add('shape');
-            shape.draggable = true;
+            const shape = shapes[Math.floor(Math.random() * shapes.length)];
+            const shapeElement = document.createElement('div');
+            shapeElement.classList.add('shape');
+            shapeElement.draggable = true;
+            shapeElement.dataset.shape = JSON.stringify(shape);
+            shapeElement.style.width = `${shape.width * 40}px`;
+            shapeElement.style.height = `${shape.height * 40}px`;
+            shapeElement.textContent = shape.type;
 
-            const shapeType = Math.floor(Math.random() * 3);
-            switch (shapeType) {
-                case 0: shape.style.width = '40px'; shape.style.height = '40px'; shape.textContent = "1x1"; break;
-                case 1: shape.style.width = '80px'; shape.style.height = '40px'; shape.textContent = "1x2"; break;
-                case 2: shape.style.width = '80px'; shape.style.height = '80px'; shape.textContent = "2x2"; break;
-            }
-
-            shape.addEventListener('dragstart', handleDragStart);
-            shape.addEventListener('touchstart', handleTouchStart);
-            shape.addEventListener('touchend', handleTouchEnd);
-            shapeContainer.appendChild(shape);
+            shapeElement.addEventListener('dragstart', handleDragStart);
+            shapeElement.addEventListener('dragend', handleDragEnd);
+            shapeContainer.appendChild(shapeElement);
         }
 
-        // Drag-and-drop event handlers
         function handleDragStart(event) {
-            currentDraggedShape = event.target.textContent;
-            event.dataTransfer.setData("shapeType", currentDraggedShape);
+            const shapeData = JSON.parse(event.target.dataset.shape);
+            currentDraggedShape = shapeData;
         }
 
-        function handleTouchStart(event) {
-            currentDraggedShape = event.target.textContent;
-            event.target.style.opacity = 0.5;
-        }
-
-        function handleTouchEnd(event) {
-            event.target.style.opacity = 1;
-            const touch = event.changedTouches[0];
-            const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
-            if (dropTarget && dropTarget.classList.contains('tile')) {
-                handleDrop({ target: dropTarget });
+        function handleDragEnd(event) {
+            const dropPosition = document.elementFromPoint(event.clientX, event.clientY);
+            if (dropPosition && dropPosition.classList.contains('tile')) {
+                const targetIndex = parseInt(dropPosition.dataset.index);
+                if (canPlaceShape(targetIndex, currentDraggedShape)) {
+                    placeShape(targetIndex, currentDraggedShape);
+                    updateScore();
+                    generateShape();
+                }
             }
+            clearShadow();
             currentDraggedShape = null;
         }
 
-        function handleDrop(event) {
-            const tile = event.target;
-            const shapeType = currentDraggedShape || event.dataTransfer.getData("shapeType");
-
-            if (shapeType === "1x1") {
-                if (!tile.classList.contains('shape')) {
-                    tile.classList.add('shape');
-                    tile.textContent = 'B';
-                    checkRows();
-                    updateScore();
-                    generateShape();
-                }
-            } else if (shapeType === "1x2") {
-                const index = parseInt(tile.dataset.index);
-                if (index % gridSize < gridSize - 1 && !tile.classList.contains('shape') &&
-                    !gameContainer.children[index + 1].classList.contains('shape')) {
-                    
-                    tile.classList.add('shape');
-                    tile.textContent = 'B';
-                    gameContainer.children[index + 1].classList.add('shape');
-                    gameContainer.children[index + 1].textContent = 'B';
-                    checkRows();
-                    updateScore();
-                    generateShape();
-                }
-            } else if (shapeType === "2x2") {
-                const index = parseInt(tile.dataset.index);
-                if (index % gridSize < gridSize - 1 && index + gridSize < gridSize * gridSize &&
-                    !tile.classList.contains('shape') &&
-                    !gameContainer.children[index + 1].classList.contains('shape') &&
-                    !gameContainer.children[index + gridSize].classList.contains('shape') &&
-                    !gameContainer.children[index + gridSize + 1].classList.contains('shape')) {
-                    
-                    tile.classList.add('shape');
-                    tile.textContent = 'B';
-                    gameContainer.children[index + 1].classList.add('shape');
-                    gameContainer.children[index + 1].textContent = 'B';
-                    gameContainer.children[index + gridSize].classList.add('shape');
-                    gameContainer.children[index + gridSize].textContent = 'B';
-                    gameContainer.children[index + gridSize + 1].classList.add('shape');
-                    gameContainer.children[index + gridSize + 1].textContent = 'B';
-                    checkRows();
-                    updateScore();
-                    generateShape();
-                }
-            }
+        function canPlaceShape(index, shape) {
+            const positions = getShapePositions(index, shape);
+            return positions.every(pos => {
+                const tile = gameContainer.children[pos];
+                return tile && !tile.classList.contains('occupied');
+            });
         }
 
-        // Function to check and clear completed rows
-        function checkRows() {
-            let rowsCleared = 0;
-            for (let row = 0; row < gridSize; row++) {
-                let isRowComplete = true;
-                for (let col = 0; col < gridSize; col++) {
-                    const index = row * gridSize + col;
-                    if (!gameContainer.children[index].classList.contains('shape')) {
-                        isRowComplete = false;
-                        break;
-                    }
-                }
-                if (isRowComplete) {
-                    rowsCleared++;
-                    for (let col = 0; col < gridSize; col++) {
-                        const index = row * gridSize + col;
-                        gameContainer.children[index].classList.remove('shape');
-                        gameContainer.children[index].textContent = '';
+        function placeShape(index, shape) {
+            const positions = getShapePositions(index, shape);
+            positions.forEach(pos => {
+                const tile = gameContainer.children[pos];
+                tile.classList.add('occupied');
+            });
+        }
+
+        function getShapePositions(index, shape) {
+            const positions = [];
+            const { width, height, pattern } = shape;
+            for (let row = 0; row < height; row++) {
+                for (let col = 0; col < width; col++) {
+                    const relativeIndex = row * gridSize + col;
+                    if (!pattern || pattern[row * width + col]) {
+                        positions.push(index + relativeIndex);
                     }
                 }
             }
-            score += rowsCleared * 10;
+            return positions;
         }
 
-        // Function to update score display
         function updateScore() {
+            score += 10;
             scoreElement.textContent = `Score: ${score}`;
         }
 
-        // Initialize the game
+        function clearShadow() {
+            document.querySelectorAll('.tile.shadow').forEach(tile => {
+                tile.classList.remove('shadow');
+            });
+        }
+
         function initGame() {
             createBoard();
             generateShape();
-            updateScore();
         }
 
-        // Start the game
         initGame();
     </script>
 </body>
